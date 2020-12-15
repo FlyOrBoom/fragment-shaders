@@ -25,8 +25,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     float offset = smoothstep(.3,.4,t)*0.6+.2;
     
-	vec2 uv = (2.0*fragCoord-vec2(0,iResolution.y))/iResolution.y;
-    
+    float left = fragCoord.x/iResolution.x;
+    float right = 1.-left;
+
+    vec2 uv = (2.0*fragCoord-vec2(0,iResolution.y))/iResolution.y;
+    uv.y += sin(t*64.+left)*.01*(.5+left);
+   
     vec2 p = uv;
     p.x = mod(p.x,offset)-offset/2.;
 
@@ -47,14 +51,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float lum = 1.-8.*d;
     lum = clamp(lum,0.,1.);
  //   lum = pow(sin(lum*PI/2.),7.);
-    
-    float dim = fragCoord.x/iResolution.x;
-    float bri = 1.-dim;
-    
+        
     vec3 col = vec3(
-        pow(lum*.2+lum*dim,.6),
+        pow(lum*.2+lum*left,.6),
         pow(lum,6.),
-        pow(lum*.1+lum*bri,.6)
+        pow(lum*.1+lum*right,.6)
     )+pow(lum,50.);
     
 	fragColor = vec4(col,1.0);
