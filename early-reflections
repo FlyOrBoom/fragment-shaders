@@ -1,0 +1,114 @@
+#define t iTime
+
+// antialiasing
+#define aauv(U,A) aa(uv.y-U,A)
+#define aa(U,A) smoothstep(3.*A/iResolution.x,-3.*A/iResolution.y,U)
+
+// colors
+#define C_WALL_0  vec3(0.43,0.45,0.45)
+#define C_WALL_1  vec3(0.55,0.55,0.53)
+#define C_FLOOR_0 vec3(0.63,0.65,0.70)
+#define C_FLOOR_1 vec3(0.78,0.80,0.85)
+#define C_EDGE_0  vec3(0.55,0.85,1.00)
+#define C_EDGE_1  vec3(0.80,0.90,1.00)
+#define C_WAVE    vec3(1.00,0.90,0.95)
+#define C_WATER_0 vec3(0.35,0.75,0.95)
+#define C_WATER_1 vec3(0.50,0.82,1.00)
+#define C_WATER_2 vec3(0.20,0.70,0.90)
+
+// vertical guides
+# define V_CANOPY +0.9
+# define V_FLOOR  +0.0
+# define V_EDGE   -0.2
+# define V_WATER  -0.3
+
+vec2 s(float x, float dx){
+    vec2 n = vec2(0.);
+    for(float i = 0.; i<5.; i++){
+        float e = exp(i);
+        float theta = e*(x+dx);
+        n.x += sin(theta);
+        n.y += e*cos(theta); // derivative
+        dx *= -1.;
+    }
+    return n;
+}
+vec2 s(float x){
+    return s(x,0.);
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    vec2 uv = (2.*fragCoord-iResolution.xy)/min(iResolution.x,iResolution.y);
+    vec3 col = vec3(.5);
+    
+    if(abs(uv.x)>1.||abs(uv.y)>1.){
+        col = vec3(.9);
+    }else{
+    
+        {
+        
+            col = C_WALL_0;
+            
+            float transition_0 = aauv(V_CANOPY+.1,20.);
+            float transition_1 = aauv(V_FLOOR+.0,1.);
+                float transition_2 = aauv(V_FLOOR+.05,3.);
+            
+            col = mix(col,C_WALL_1,transition_0);
+            col = mix(col,C_FLOOR_0,transition_1);
+            col = mix(col,C_FLOOR_1,transition_2);
+        
+        }
+    
+        if(uv.y<V_EDGE+.1){
+        
+            vec3 colEdge = C_EDGE_0;
+            
+            vec2 p = uv;
+            float transition_0 = aauv(V_EDGE,1.);
+            
+            float markings = mod(p.x,.1);
+            float r = 2e-2;
+            colEdge = mix(colEdge,C_EDGE_1,aa(abs(markings)-r,1.));
+            
+            col = mix(col,colEdge,transition_0);
+        }
+        
+        if(uv.y<V_WATER+.1) {
+        
+            vec3 colPool = C_WATER_0; // pool water
+        
+            vec2 p = uv;
+            p.x /= uv.y/3.-1.; // perspective
+            
+            float wave = s(p.x/1e1,t/1e2).x/1e2;
+
+            float transition_0 = aauv(V_WATER+wave+.0,2.);
+            float transition_1 = aauv(V_WATER+wave+.1,2.);
+            float transition_2 = aauv(V_WATER+wave+.3,10.);
+
+            colPool = mix(colPool,C_WATER_1,transition_1);
+            colPool = mix(colPool,C_WATER_2,transition_2);
+
+            for(float i = -1.; i<=1.; i+=3e-2){
+                vec2 q = p;
+                vec2 scale = vec2(10.,4.);
+
+                vec2 n = s(q.y/scale.y+i,t/1e2)/1e2;
+                q.x += s(i,t/1e3).x+n.x*scale.x;
+                float r = 7e-3;
+                r *= 1.+n.y*n.y*scale.x*scale.y/2e1;
+                colPool = mix(colPool,C_WAVE,
+                    min(aa(abs(q.x)-r,1.),(transition_1+.5)/2.)
+                );
+            }
+
+            col = mix(col,colPool,transition_0);
+        
+        }
+    }
+    
+    
+    // Output to screen
+    fragColor = vec4(col,1.0);
+}
